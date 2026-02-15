@@ -153,25 +153,14 @@ async def my_agent(ctx: JobContext):
 
     # Greet the user
     try:
-        logger.info("Attempting to greet the user...")
         greeting_text = "Hello! I am your budget assistant. I can help you analyze your expenses and plan your budget based on your transaction history. How can I help you today?"
-        
-        logger.info(f"Session object type: {type(session)}")
-        logger.info(f"Available attributes on session: {dir(session)}")
-        
+        # Attempt to use 'say' if available, otherwise just log (since we aren't sure of valid API on AgentSession)
         if hasattr(session, 'say'):
-            logger.info("Session has 'say' method. Calling it now.")
             await session.say(greeting_text, allow_interruptions=True)
-            logger.info("Greeting sent.")
         else:
             logger.info(f"Session does not support 'say', skipping greeting. Text: {greeting_text}")
-            
-            # Fallback: try to generate a response via LLM if 'say' is missing? 
-            # Or just send a text message if chat context is available?
-            # For now, just log.
-            
     except Exception as e:
-        logger.error(f"Failed to greet: {e}", exc_info=True)
+        logger.error(f"Failed to greet: {e}")
 
 
 

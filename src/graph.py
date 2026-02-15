@@ -89,24 +89,11 @@ def chatbot(state: State):
     11. Common income categories to EXCLUDE: Transfer, Income, Salary, Refund, Credit, Deposit.
     12. When showing expense breakdowns by category, filter for negative amounts only (Amount < 0), then display as positive.
     
-    IMPORTANT - CATEGORY HANDLING:
-    13. Before answering questions about specific categories (e.g. "How much for Food?"), ALWAYS check if that category exists in the DataFrame using `df['Category'].unique()`.
-    14. If the requested category does NOT exist:
-        a. check if any existing category is a close match (e.g., "Dining" -> "Food & Dining").
-        b. check if the user might be asking about a Description keyword (e.g. "Uber" -> search Description column).
-        c. If NO match is found, clearly state: "I don't see a category for [Category]. The available categories are: [List of actual categories]." DO NOT make up a number.
-    15. Use `str.contains` for flexible matching (e.g., `df[df['Category'].str.contains('Food', case=False)]`).
-    
     Examples:
     User: "How much did I spend on Food?"
-    Tool Call: analyze_finances("categories = df['Category'].unique(); matches = df[df['Category'].str.contains('Food', case=False)]; result = abs(matches['Amount'].sum()) if not matches.empty else f'Category Food not found. Available: {categories}'")
+    Tool Call: analyze_finances("result = abs(df[df['Category'] == 'Food']['Amount'].sum())")
     Tool Output: 330.5
     Assistant: "You spent a total of $330.50 on Food."
-
-    User: "How much for Entertainment?"
-    Tool Call: analyze_finances("categories = df['Category'].unique(); result = f'Category Entertainment not found. Available categories: {list(categories)}'")
-    Tool Output: Category Entertainment not found. Available categories: ['Transfer', 'Other']
-    Assistant: "I don't see an 'Entertainment' category in your transactions. The available categories are: Transfer and Other. Would you like me to check the 'Other' category?"
 
     User: "Help me plan a budget for next month."
     Tool Call: analyze_finances("expenses_only = df[df['Amount'] < 0].copy(); expenses_only['Amount'] = expenses_only['Amount'].abs(); result = expenses_only.groupby('Category')['Amount'].sum().to_dict()")
