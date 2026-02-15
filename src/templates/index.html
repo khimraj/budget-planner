@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BON - Expense Analyzer & Budget Planner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <!-- BON Logo -->
+            <div class="logo-container">
+                <img src="https://d3l6jpw7ig8082.cloudfront.net/landingpagemedia/logos+Folder/bon-logo.svg"
+                    alt="BON Logo" class="logo">
+            </div>
+
+            <!-- Title -->
+            <h1 class="title">Expense Analyzer & Budget Planner</h1>
+            <p class="subtitle">Upload your statement to get started with your AI financial assistant.</p>
+
+            <!-- Upload Area -->
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <p class="upload-text">Click to upload or drag & drop</p>
+                <p class="upload-hint">CSV supported</p>
+                <input type="file" id="file-input" accept=".csv" hidden>
+            </div>
+
+            <!-- Error/Success Messages -->
+            <div id="message" class="message hidden"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Processing your file...</p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-container">
+                <button class="btn btn-secondary" id="upload-btn">Upload File</button>
+                <button class="btn btn-primary" id="voice-btn" disabled>Start Voice Chat</button>
+            </div>
+
+            <p class="status-text" id="status-text">Ready to assist</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>

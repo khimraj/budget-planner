@@ -12,12 +12,29 @@ logger = logging.getLogger("agent")
 
 # Load data at module level
 CSV_PATH = "transactions.csv"
-if not os.path.exists(CSV_PATH):
-    # This should be handled by creating the file before running, or we can create a dummy one here
-    # For now, we assume it exists as we created it.
-    df = pd.DataFrame(columns=["Date", "Description", "Amount", "Category"])
-else:
-    df = pd.read_csv(CSV_PATH)
+df = pd.DataFrame(columns=["Date", "Description", "Amount", "Category"])
+
+def reload_csv_data(csv_path: str = None):
+    """
+    Reload CSV data from file.
+    
+    Args:
+        csv_path: Path to CSV file. If None, uses default CSV_PATH.
+    """
+    global df
+    path = csv_path or CSV_PATH
+    
+    if os.path.exists(path):
+        df = pd.read_csv(path)
+        logger.info(f"Loaded {len(df)} transactions from {path}")
+    else:
+        df = pd.DataFrame(columns=["Date", "Description", "Amount", "Category"])
+        logger.warning(f"CSV file not found: {path}, using empty dataframe")
+    
+    return df
+
+# Initialize data
+reload_csv_data()
 
 # Define tools
 @tool
@@ -30,8 +47,11 @@ def analyze_finances(code: str):
     result = df[df['Category'] == 'Food']['Amount'].sum()
     """
     try:
+        # Reload CSV to get latest data
+        current_df = reload_csv_data()
+        
         # Create a safe local dictionary with allowed modules and the dataframe
-        local_vars = {"df": df, "pd": pd}
+        local_vars = {"df": current_df, "pd": pd}
         # Execute the code
         exec(code, {"__builtins__": {}}, local_vars)
         return str(local_vars.get("result", "No result variable set."))
@@ -60,17 +80,43 @@ def chatbot(state: State):
     5. If the user asks about something completely unrelated to the budget, expenses, or financial/budget planning based on this data, politely inform them of your purpose. For example, "I specialize in helping you manage your budget and expenses. How can I help with your finances today?"
     6. Your FINAL answer to the user must be in natural language. DO NOT include the code, the verification steps, or technical jargon in the final response. Just the answer.
     7. If the user's question cannot be answered by the data, state that clearly.
+    8. **You are allowed to answer general questions about the dataset**, such as the total number of transactions, date ranges, or specific transaction details, as this helps the user understand their data.
+    
+    IMPORTANT - INCOME vs EXPENSES:
+    8. **Positive amounts** (Amount > 0) are INCOME (e.g., salary, refunds, credits, transfers INTO account). These should be EXCLUDED from expense analysis and budget planning.
+    9. **Negative amounts** (Amount < 0) are EXPENSES (money spent). When reporting expenses, always display them as POSITIVE values (multiply by -1 or use abs()).
+    10. For budget planning, ONLY consider expenses (negative amounts). DO NOT subtract income from expenses. Calculate: sum of all expenses only.
+    11. Common income categories to EXCLUDE: Transfer, Income, Salary, Refund, Credit, Deposit.
+    12. When showing expense breakdowns by category, filter for negative amounts only (Amount < 0), then display as positive.
+    
+    IMPORTANT - CATEGORY HANDLING:
+    13. Before answering questions about specific categories (e.g. "How much for Food?"), ALWAYS check if that category exists in the DataFrame using `df['Category'].unique()`.
+    14. If the requested category does NOT exist:
+        a. check if any existing category is a close match (e.g., "Dining" -> "Food & Dining").
+        b. check if the user might be asking about a Description keyword (e.g. "Uber" -> search Description column).
+        c. If NO match is found, clearly state: "I don't see a category for [Category]. The available categories are: [List of actual categories]." DO NOT make up a number.
+    15. Use `str.contains` for flexible matching (e.g., `df[df['Category'].str.contains('Food', case=False)]`).
     
     Examples:
     User: "How much did I spend on Food?"
-    Tool Call: analyze_finances("result = df[df['Category'] == 'Food']['Amount'].sum()")
+    Tool Call: analyze_finances("categories = df['Category'].unique(); matches = df[df['Category'].str.contains('Food', case=False)]; result = abs(matches['Amount'].sum()) if not matches.empty else f'Category Food not found. Available: {categories}'")
     Tool Output: 330.5
     Assistant: "You spent a total of $330.50 on Food."
 
+    User: "How much for Entertainment?"
+    Tool Call: analyze_finances("categories = df['Category'].unique(); result = f'Category Entertainment not found. Available categories: {list(categories)}'")
+    Tool Output: Category Entertainment not found. Available categories: ['Transfer', 'Other']
+    Assistant: "I don't see an 'Entertainment' category in your transactions. The available categories are: Transfer and Other. Would you like me to check the 'Other' category?"
+
     User: "Help me plan a budget for next month."
-    Tool Call: analyze_finances("result = df.groupby('Category')['Amount'].sum().to_dict()")
-    Tool Output: {'Food': 150, 'Transport': 50}
-    Assistant: "Based on your spending history, I suggest setting a budget of at least $150 for Food and $50 for Transport for next month."
+    Tool Call: analyze_finances("expenses_only = df[df['Amount'] < 0].copy(); expenses_only['Amount'] = expenses_only['Amount'].abs(); result = expenses_only.groupby('Category')['Amount'].sum().to_dict()")
+    Tool Output: {'Food': 150.5, 'Transport': 50.0, 'Other': 200.0}
+    Assistant: "Based on your spending history, I suggest setting a budget of at least $150.50 for Food, $50.00 for Transport, and $200.00 for Other categories for next month."
+    
+    User: "What's my total budget for next month?"
+    Tool Call: analyze_finances("result = abs(df[df['Amount'] < 0]['Amount'].sum())")
+    Tool Output: 400.5
+    Assistant: "Your total recommended budget for next month is $400.50, based on your expense history."
     """
     
     messages = [SystemMessage(content=system_prompt)] + state["messages"]

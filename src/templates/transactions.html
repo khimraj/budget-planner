@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BON - Transactions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Top Controls -->
+        <div class="top-controls">
+            <button class="btn btn-secondary" onclick="window.location.href='/'">Upload File</button>
+            <button class="btn btn-voice" id="voice-control-btn">Start Voice Chat</button>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="connection-status" id="connection-status">
+            <span class="status-indicator" id="status-indicator"></span>
+            <span id="status-label">Disconnected</span>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Transactions Section -->
+        <div class="transactions-section">
+            <h2 class="section-title">Parsed Transactions</h2>
+
+            <!-- Loading State -->
+            <div id="transactions-loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading transactions...</p>
+            </div>
+
+            <!-- Error Message -->
+            <div id="transactions-error" class="message message-error hidden"></div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="empty-state hidden">
+                <p>No transactions found. Please upload a CSV file.</p>
+                <button class="btn btn-primary" onclick="window.location.href='/'">Upload File</button>
+            </div>
+
+            <!-- Transactions List -->
+            <div id="transactions-list" class="transactions-list"></div>
+        </div>
+
+        <!-- Voice Agent Container (Hidden initially) -->
+        <div id="voice-container" class="voice-container hidden">
+            <div id="voice-status" class="voice-status">
+                <div class="voice-indicator"></div>
+                <span id="voice-status-text">Connected! Speak now.</span>
+            </div>
+            <div class="audio-level-container">
+                <div class="audio-level-bar" id="audio-level-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include LiveKit Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"
+        onload="console.log('LiveKit SDK loaded successfully')"
+        onerror="alert('Failed to load LiveKit SDK. Please check your internet connection or try disabling ad blockers.')"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Load transactions on page load
+        window.addEventListener('DOMContentLoaded', loadTransactions);
+    </script>
+</body>
+
+</html>
