@@ -12,6 +12,10 @@ from livekit import api
 from datetime import timedelta
 from dotenv import load_dotenv
 import secrets
+import subprocess
+import atexit
+import signal
+import sys
 
 # Load environment variables from .env.local
 load_dotenv(".env.local")
@@ -20,6 +24,70 @@ from csv_parser import parse_csv_with_llm, save_transactions
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Global variable to hold the agent process
+agent_process = None
+
+def start_agent():
+    """Start the LiveKit agent as a subprocess."""
+    global agent_process
+    
+    if agent_process is not None:
+        logger.warning("Agent process already running")
+        return
+    
+    try:
+        logger.info("Starting LiveKit agent...")
+        # Get the project root directory (parent of src/)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        # Start the agent using uv run
+        agent_process = subprocess.Popen(
+            ["uv", "run", "python", "src/agent.py", "dev"],
+            cwd=project_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,  # Line buffered
+        )
+        logger.info(f"LiveKit agent started with PID: {agent_process.pid}")
+    except Exception as e:
+        logger.error(f"Failed to start agent: {e}")
+        agent_process = None
+
+def stop_agent():
+    """Stop the LiveKit agent subprocess."""
+    global agent_process
+    
+    if agent_process is None:
+        return
+    
+    try:
+        logger.info(f"Stopping LiveKit agent (PID: {agent_process.pid})...")
+        agent_process.terminate()
+        
+        # Wait for graceful shutdown
+        try:
+            agent_process.wait(timeout=5)
+            logger.info("Agent stopped gracefully")
+        except subprocess.TimeoutExpired:
+            logger.warning("Agent didn't stop gracefully, forcing shutdown...")
+            agent_process.kill()
+            agent_process.wait()
+            logger.info("Agent forcefully stopped")
+    except Exception as e:
+        logger.error(f"Error stopping agent: {e}")
+    finally:
+        agent_process = None
+
+def cleanup_on_exit():
+    """Cleanup function to stop agent when Flask exits."""
+    stop_agent()
+
+# Register cleanup handlers
+atexit.register(cleanup_on_exit)
+signal.signal(signal.SIGTERM, lambda signum, frame: cleanup_on_exit())
+signal.signal(signal.SIGINT, lambda signum, frame: (cleanup_on_exit(), sys.exit(0)))
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
@@ -169,5 +237,12 @@ def clear_session():
 
 
 if __name__ == '__main__':
-    # Run on port 8000 as requested
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    # Start the LiveKit agent first
+    start_agent()
+    
+    try:
+        # Run Flask on port 8000
+        app.run(host='0.0.0.0', port=8000, debug=True, use_reloader=False)
+    finally:
+        # Ensure agent is stopped when Flask exits
+        stop_agent()
