@@ -41,21 +41,17 @@ def start_agent():
         # Get the project root directory (parent of src/)
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
-        # Decide mode based on environment or default to start for production safety
-        # In Docker we definitely want 'start'
-        agent_mode = os.getenv("AGENT_MODE", "start")
-        
         # Start the agent using python directly (venv is already activated in Docker/PATH)
         # Use sys.executable to ensure we use the same interpreter
         # Redirect stdout/stderr to main process streams to see logs in Docker
         agent_process = subprocess.Popen(
-            [sys.executable, "src/agent.py", agent_mode],
+            [sys.executable, "src/agent.py", "dev"],
             cwd=project_root,
             stdout=None, # Inherit from parent
             stderr=None, # Inherit from parent
             text=True,
         )
-        logger.info(f"LiveKit agent started in '{agent_mode}' mode with PID: {agent_process.pid}")
+        logger.info(f"LiveKit agent started in 'dev' mode with PID: {agent_process.pid}")
     except Exception as e:
         logger.error(f"Failed to start agent: {e}")
         agent_process = None
