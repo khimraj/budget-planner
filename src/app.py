@@ -199,8 +199,12 @@ def get_livekit_token():
     """Generate LiveKit access token for voice agent connection."""
     try:
         # Get room name from request or use default
+        # Get room name from request or use default with unique identifier
         data = request.get_json(silent=True) or {}
-        room_name = data.get('room', 'budget-planner-room')
+        # Always generate a unique room name to force a new agent session
+        # This ensures the greeting is triggered every time the user connects
+        base_room = data.get('room', 'budget-planner-room')
+        room_name = f"{base_room}-{secrets.token_hex(4)}"
         participant_name = data.get('participant', f'user-{secrets.token_hex(4)}')
         
         # Get LiveKit credentials from environment

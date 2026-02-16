@@ -162,6 +162,15 @@ async def my_agent(ctx: JobContext):
     except Exception as e:
         logger.error(f"Failed to greet: {e}")
 
+    # Handle disconnect
+    @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(participant: rtc.RemoteParticipant):
+        logger.info(f"Participant disconnected: {participant.identity}")
+        if len(ctx.room.remote_participants) == 0:
+            logger.info("No participants left in room, closing agent session...")
+            # This will trigger the agent to exit and free resources
+            sys.exit(0)
+
 
 
 if __name__ == "__main__":
