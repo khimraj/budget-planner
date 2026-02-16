@@ -18,7 +18,7 @@ import signal
 import sys
 
 # Load environment variables from .env.local
-load_dotenv(".env.local")
+load_dotenv()
 
 from csv_parser import parse_csv_with_llm, save_transactions
 
@@ -91,15 +91,23 @@ signal.signal(signal.SIGINT, lambda signum, frame: (cleanup_on_exit(), sys.exit(
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
-app.config['UPLOAD_FOLDER'] = 'data/uploads'
+
+# Use absolute path for data directory to ensure Docker compatibility
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')
+TRANSACTIONS_CSV = os.path.join(DATA_DIR, 'transactions.csv')
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 
 # Enable CORS
 CORS(app)
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure data directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'csv', 'txt'}
@@ -137,30 +145,28 @@ def upload_file():
         if not allowed_file(file.filename):
             return jsonify({'error': 'Invalid file type. Please upload a CSV file.'}), 400
         
+        # Save uploaded file with a fixed name to prevent file accumulation
+        # Use source.csv since parsing handles both csv and txt content
+        original_filename = "source.csv"
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], original_filename)
+        file.save(upload_path)
+        logger.info(f"Saved uploaded file to {upload_path}")
+        
         # Read file content
-        file_content = file.read().decode('utf-8')
+        with open(upload_path, 'r', encoding='utf-8') as f:
+            file_content = f.read()
         
         # Parse CSV using LLM
         logger.info("Parsing CSV with LLM...")
         df_parsed = parse_csv_with_llm(file_content)
         
-        # Save to session-specific file
-        session_id = session.get('session_id')
-        if not session_id:
-            session_id = secrets.token_hex(16)
-            session['session_id'] = session_id
-            session.permanent = True
-        
-        # Save to both session-specific and global file
-        session_csv_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}.csv")
-        save_transactions(df_parsed, session_csv_path)
-        
-        # Also save to global file for voice agent access (temporary solution)
-        save_transactions(df_parsed, "transactions.csv")
+        # Save to single transactions.csv file (replaces previous uploads)
+        save_transactions(df_parsed, TRANSACTIONS_CSV)
+        logger.info(f"Saved parsed transactions to {TRANSACTIONS_CSV}")
         
         # Store in session
         session['transactions'] = df_parsed.to_dict('records')
-        session['csv_path'] = session_csv_path
+        session['csv_path'] = TRANSACTIONS_CSV
         
         logger.info(f"Successfully parsed {len(df_parsed)} transactions")
         

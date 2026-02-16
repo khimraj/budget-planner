@@ -29,7 +29,7 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
-load_dotenv(".env.local")
+load_dotenv()
 
 # Fix SSL certificate verification on macOS
 ssl_context = ssl.create_default_context(cafile=certifi.where())

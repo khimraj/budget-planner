@@ -10,8 +10,10 @@ import logging
 
 logger = logging.getLogger("agent")
 
-# Load data at module level
-CSV_PATH = "transactions.csv"
+# Load data at module level - use absolute path for Docker compatibility
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+CSV_PATH = os.path.join(DATA_DIR, 'transactions.csv')
 df = pd.DataFrame(columns=["Date", "Description", "Amount", "Category"])
 
 def reload_csv_data(csv_path: str = None):

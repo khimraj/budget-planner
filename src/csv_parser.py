@@ -6,6 +6,7 @@ Converts various CSV formats to internal format: Date, Description, Amount, Cate
 import pandas as pd
 import json
 import logging
+import traceback
 from openai import OpenAI
 import os
 from typing import Dict, List
@@ -127,6 +128,7 @@ CSV Data:
             
     except Exception as e:
         logger.error(f"Error parsing CSV with LLM: {e}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
         raise
 
 
@@ -138,5 +140,10 @@ def save_transactions(df: pd.DataFrame, output_path: str = "transactions.csv"):
         df: DataFrame with parsed transactions
         output_path: Path to save CSV file
     """
+    # Ensure directory exists
+    output_dir = os.path.dirname(output_path)
+    if output_dir:  # Only create if there's a directory component
+        os.makedirs(output_dir, exist_ok=True)
+    
     df.to_csv(output_path, index=False)
     logger.info(f"Saved {len(df)} transactions to {output_path}")
